@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Оплата через Звезды</title>
+  <style>
+    #count {
+      font-size: 2rem;
+      margin-top: 10px;
+    }
+    #logs {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #f0f0f0;
+      border-radius: 5px;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Оплатите 1 звезду</h2>
+  <button id="payButton">Оплатить 1 Звезду</button>
+
+  <div id="count">Счётчик звёзд: <span id="starCount">0</span></div>
+
+  <div id="logs"></div>
+
+  <script>
+    // Функция для вывода логов на страницу
+    function logToPage(message) {
+      const logContainer = document.getElementById('logs');
+      const newLog = document.createElement('p');
+      newLog.textContent = message;
+      logContainer.appendChild(newLog);
+    }
+
+    // Получаем Telegram ID пользователя из Mini-app (параметр user_id)
+    function getTelegramIdFromMiniApp() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('user_id');
+    }
+
+    const telegramId = getTelegramIdFromMiniApp();
+
+    if (telegramId) {
+      localStorage.setItem('telegramId', telegramId);
+      logToPage('Telegram ID сохранён автоматически: ' + telegramId);
+    } else {
+      logToPage('Не удалось получить Telegram ID.');
+    }
+
+    // Отображаем текущий счётчик из localStorage
+    let starCount = localStorage.getItem('starCount') || 0;
+    document.getElementById('starCount').textContent = starCount;
+
+    // Проверяем, если пользователь уже оплатил
+    if (localStorage.getItem('paymentStatus') === 'paid') {
+      document.getElementById('payButton').disabled = true;
+      logToPage('Вы уже оплатили 1 звезду.');
+    }
+
+    // Кнопка для оплаты
+    document.getElementById('payButton').addEventListener('click', function() {
+      if (!telegramId) {
+        logToPage('Ошибка: Не найден Telegram ID.');
+        return;
+      }
+
+      // Токен вашего бота
+      const token = '7857370165:AAEz9EDse_43SNI92ywnN9_EGAkyn3WfaTw';
+
+      // Отправляем запрос на кнопку для оплаты через Telegram API
+      const invoiceData = {
+        chat_id: telegramId, // Получаем ID пользователя
+        title: 'Оплата через Звезды',
+        description: 'Оплата 1 звезды.',
+        payload: 'payment_for_star',
+        provider_token: '', // Укажите свой токен провайдера
+        currency: 'XTR',
+        prices: [{ label: 'XTR', amount: 100 }],
+        start_parameter: 'payment_request',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: 'Оплатить 1 ⭐️',
+                pay: true
+              }
+            ]
+          ]
+        }
+      };
+
+      // Отправка инвойса через Telegram Bot API
+      fetch(`https://api.telegram.org/bot${token}/sendInvoice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invoiceData)
+      })
+      .then(response => response.json())
+      .then(data => {
+        logToPage('Инвойс отправлен: ' + JSON.stringify(data));
+      })
+      .catch(error => {
+        logToPage('Ошибка при отправке инвойса: ' + error);
+      });
+    });
+
+    // Функция для обновления счётчика и статуса оплаты
+    function updateStarCount() {
+      // Проверяем статус оплаты в localStorage
+      if (localStorage.getItem('paymentStatus') === 'paid') {
+        starCount++;
+        localStorage.setItem('starCount', starCount); // Сохраняем новый счётчик
+        document.getElementById('starCount').textContent = starCount;
+        logToPage('Оплата прошла успешно! Счётчик обновлён.');
+      } else {
+        logToPage('Ожидается оплата...');
+      }
+    }
+
+    // Эта функция будет запускаться через каждую пару секунд, проверяя оплату
+    setInterval(updateStarCount, 5000); // Проверка каждую секунду, чтобы обновить статус
+
+  </script>
+
+</body>
+</html>
